@@ -5,4 +5,7 @@
 
 *.rss
 
+*.mp4
+*.patch
+
 \.update_check\.txt

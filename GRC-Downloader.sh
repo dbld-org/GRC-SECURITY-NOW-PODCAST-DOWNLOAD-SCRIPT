@@ -3,10 +3,6 @@
 # Created: 2012-05-25
 # Last Updated: 2018-04-11
 
-# This script will have updates at http://techblog.sethleedy.name/?p=24172 website
-#and for development @ https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT
-
-
 # Initialization.
 this_version=2.0
 do_gh_update=false
@@ -580,304 +576,138 @@ function do_find_latest_episode() {
 	fi
 }
 
+function download_audio() {
+
+	local local_d=$1
+	local local_url=$2
+	if ! $quite_mode ; then
+		echo "${homeclr}Downloading audio episode ${EPISODE_Cur}..."
+		echo "${homeclr}Dwnld count ${local_d} with url ${local_url}"
+	fi
+
+	tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$2"`
+	ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
+
+	pid[$local_d]=$ttpid
+}
+
+function download_video() {
+
+	local local_d=$1
+	local loc_url=$2 	#$EPISODE_NAME_VIDEO_HD
+	local loc_url_b=$3	#$EPISODE_NAME_VIDEO_HD_b
+
+	check_url "$loc_url"
+	if [ $? -ne 0 ]; then
+		check_url "$loc_url_b"
+		EPISODE_NAME_VIDEO_HD="$EPISODE_NAME_VIDEO_HD_b"
+	fi
+	if [ $? -eq 0 ]; then
+		if ! $quite_mode ; then
+			echo "${homeclr}Downloading video episode ${EPISODE_Cur}..."
+		fi
+
+		tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HD"`
+		ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
+		pid[$local_d]=$ttpid
+	else
+		if ! $quite_mode ; then
+			echo "HD video episode ${EPISODE_Cur} not found..."
+		fi
+	fi
+}
+
 # IF downloading files, this is the function that does it.
 function do_downloading() {
-
 
 	# Setup Loop here to download a range of episodes.
 	#loop from EPISODE to EPISODE_TO
 	slot_downloads=$(($par_downloads_count))
 
-	#echo "Slot download: $slot_downloads"
+	echo "Slot download: $slot_downloads"
 	c=$EPISODE
 	#for (( c=$EPISODE; $c<=$EPISODE_TO; c=$(($c+$slot_downloads)) )); do
+
 	while [[ $c -le $EPISODE_TO ]]; do
+		for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do
 
-		# Convert the interger to leading zeros for proper filename.
-		EPISODE_Cur=$( printf "%.4d" $d )
+			# If the difference is less, then we can't download more.
+			epi_no_zero="$(echo $EPISODE_TO | sed 's/0*//')"
+			echo "D: $d"
+			echo "epi: $epi_no_zero"
+			if [ $d -gt $epi_no_zero ]; then
+				echo "Over Number: $EPISODE_TO"
+				break
+			fi
 
-		if  $download_audio_hq ; then
-			for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do
+			EPISODE_Cur=$( printf "%.3d" $d ) # Legacy episode numbers are 3 0s long. Fix this after episode 999.
 
-				# If the difference is less, then we can't download more.
-				epi_no_zero="$(echo $EPISODE_TO | sed 's/0*//')"
-				#echo "D: $d"
-				#echo "epi: $epi_no_zero"
-				if [ $d -gt $epi_no_zero ]; then
-					#echo "Over Number: $EPISODE_TO"
-					break
-				fi
+			if  $download_audio_lq ; then
+				EPISODE_NAME_AUDIO_LINK="${EPISODE_NAME_AUDIO_LQ_URL}/sn-${EPISODE_Cur}-lq.mp3"
 
-				#EPISODE_Cur=$( printf "%03d\n" $(( 10#$d)) )
-				EPISODE_Cur=$( printf "%.4d" $d )
-				#EPISODE_NAME_AUDIO_HQ="${EPISODE_NAME_AUDIO_HQ_URL}/sn-${EPISODE_Cur}.mp3"
-				EPISODE_NAME_AUDIO_HQ="${EPISODE_NAME_AUDIO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}.mp3"
-
-				if ! $quite_mode ; then
-					echo "${homeclr}Downloading HQ audio episode ${EPISODE_Cur}..."
-				fi
-
-				tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_HQ"`
-				#tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c "$EPISODE_NAME_AUDIO_HQ"` # Debugging
-				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
-				pid[$d]=$ttpid
-
-				#echo "PID: ${pid[$d]}"
-			done
-		fi
-		if  $download_audio_lq ; then
-			for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do # Does not like variable $d within here on the second expression in the loop. Have to use $c.
-				# If the difference is less, then we can't download more.
-				epi_no_zero="$(echo $EPISODE_TO | sed 's/0*//')"
-				#echo "D: $d"
-				#echo "epi: $epi_no_zero"
-				if [ $d -gt $epi_no_zero ]; then
-					echo "Over Number: $EPISODE_TO"
-					break
-				fi
-
-				EPISODE_Cur=$( printf "%.3d" $d) # Audio is 3 0s long. Fix this after episode 999.
-				EPISODE_NAME_AUDIO_LQ="${EPISODE_NAME_AUDIO_LQ_URL}/sn-${EPISODE_Cur}-lq.mp3"
-
-				if ! $quite_mode ; then
-					echo "${homeclr}Downloading LQ audio episode ${EPISODE_Cur}..."
-				fi
-
-				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_LQ"`
-				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
-				pid[$d]=$ttpid
-
-				#echo "PID: ${pid[$d]}"
-			done
-			#echo "D2=$d"
-		fi
-		if  $download_episode_text ; then
-			for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do
-
-				# If the difference is less, then we can't download more.
-				epi_no_zero="$(echo $EPISODE_TO | sed 's/0*//')"
-				#echo "D: $d"
-				#echo "epi: $epi_no_zero"
-				if [ $d -gt $epi_no_zero ]; then
-					#echo "Over Number: $EPISODE_TO"
-					break
-				fi
-
-				EPISODE_Cur=$( printf "%.3d" $d ) # Audio is three 0s long. Fix this after episode 999.
+				download_audio $d "${EPISODE_NAME_AUDIO_LINK}"			
+				echo "PID: ${pid[$d]}"
+			fi
+			if  $download_episode_text ; then
 				EPISODE_NAME_AUDIO_TEXT="${EPISODE_NAME_AUDIO_TEXT_URL}/sn-${EPISODE_Cur}.txt"
 
-				if ! $quite_mode || ( $search_echo_override_mode && ! $quite_mode ) ; then
-					if $search_echo_override_mode ; then
-						echo -ne "${homeclr}Checking or Downloading: text episode ${EPISODE_Cur}"
-					else
-						echo -ne "${homeclr}Downloading: text episode ${EPISODE_Cur}"
-					fi
-
-				fi
-
-				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_TEXT"`
-				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
-				pid[$d]=$ttpid
-
-				#echo "PID: ${pid[$d]}"
-			done
-		fi
-		if  $download_episode_pdf ; then
-			for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do
-
-				# If the difference is less, then we can't download more.
-				epi_no_zero="$(echo $EPISODE_TO | sed 's/0*//')"
-				#echo "D: $d"
-				#echo "epi: $epi_no_zero"
-				if [ $d -gt $epi_no_zero ]; then
-					#echo "Over Number: $EPISODE_TO"
-					break
-				fi
-
-				EPISODE_Cur=$( printf "%.3d" $d ) # Audio is 3 0s long. Fix this after episode 999.
+				download_audio $d "${EPISODE_NAME_AUDIO_TEXT}"			
+				echo "PID: ${pid[$d]}"
+			fi
+			if  $download_episode_pdf ; then
 				EPISODE_NAME_AUDIO_PDF="${EPISODE_NAME_AUDIO_PDF_URL}/sn-${EPISODE_Cur}.pdf"
 
-				if ! $quite_mode ; then
-					echo "${homeclr}Downloading episode text ${EPISODE_Cur}..."
-				fi
-
-				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_PDF"`
-				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
-				pid[$d]=$ttpid
-
-				#echo "PID: ${pid[$d]}"
-			done
-		fi
-		if  $download_episode_html ; then
-			for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do
-
-				# If the difference is less, then we can't download more.
-				epi_no_zero="$(echo $EPISODE_TO | sed 's/0*//')"
-				#echo "D: $d"
-				#echo "epi: $epi_no_zero"
-				if [ $d -gt $epi_no_zero ]; then
-					#echo "Over Number: $EPISODE_TO"
-					break
-				fi
-
-				EPISODE_Cur=$( printf "%.3d" $d ) # Audio is 3 0s long. Fix this after episode 999.
+				download_audio $d "${EPISODE_NAME_AUDIO_PDF}"			
+				echo "PID: ${pid[$d]}"
+			fi
+			if  $download_episode_html ; then
 				EPISODE_NAME_AUDIO_HTML="${EPISODE_NAME_AUDIO_HTML_URL}/sn-${EPISODE_Cur}.htm"
 
-				if ! $quite_mode ; then
-					echo "${homeclr}Downloading episode text ${EPISODE_Cur}..."
-				fi
-
-				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_HTML"`
-				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
-				pid[$d]=$ttpid
-
-				#echo "PID: ${pid[$d]}"
-			done
-		fi
-		if  $download_episode_shownote ; then
-			for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do
-
-				# If the difference is less, then we can't download more.
-				epi_no_zero="$(echo $EPISODE_TO | sed 's/0*//')"
-				#echo "D: $d"
-				#echo "epi: $epi_no_zero"
-				if [ $d -gt $epi_no_zero ]; then
-					#echo "Over Number: $EPISODE_TO"
-					break
-				fi
-
-				EPISODE_Cur=$( printf "%.3d" $d ) # Audio is 3 0s long. Fix this after episode 999.
+				download_audio $d "${EPISODE_NAME_AUDIO_HTML}"			
+				echo "PID: ${pid[$d]}"
+			fi
+			if  $download_episode_shownote ; then
 				EPISODE_NAME_AUDIO_SHOWNOTES="${EPISODE_NAME_AUDIO_SHOWNOTES_URL}/sn-${EPISODE_Cur}-notes.pdf"
 
-				if ! $quite_mode ; then
-					echo "${homeclr}Downloading episode show notes ${EPISODE_Cur}..."
-				fi
+				download_audio $d "${EPISODE_NAME_AUDIO_SHOWNOTES}"			
+				echo "PID: ${pid[$d]}"
 
-				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_SHOWNOTES"`
-				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
-				pid[$d]=$ttpid
+			fi
 
-				#echo "PID: ${pid[$d]}"
-			done
-		fi
-		if $download_video_hd ; then
-			for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do
+			if  $download_audio_hq ; then
+				EPISODE_Cur=$( printf "%.4d" $d )
+				EPISODE_NAME_AUDIO_LINK="${EPISODE_NAME_AUDIO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}.mp3"
 
-				# If the difference is less, then we can't download more.
-				epi_no_zero="$(echo $EPISODE_TO | sed 's/0*//')"
-				#echo "D: $d"
-				#echo "epi: $epi_no_zero"
-				if [ $d -gt $epi_no_zero ]; then
-					#echo "Over Number: $EPISODE_TO"
-					break
-				fi
-
+				download_audio $d "${EPISODE_NAME_AUDIO_LINK}"
+				echo "PID: ${pid[$d]}"
+			fi
+			if $download_video_hd ; then
 				EPISODE_Cur=$( printf "%.4d" $d ) # Video is 4 0s long
 				EPISODE_NAME_VIDEO_HD="${EPISODE_NAME_VIDEO_HD_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_1280x720_1872.mp4"
 				EPISODE_NAME_VIDEO_HD_b="${EPISODE_NAME_VIDEO_HD_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_1280x720_1872.mp4"
 				#echo $EPISODE_NAME_VIDEO_HQ
-
-				check_url "$EPISODE_NAME_VIDEO_HD"
-				if [ $? -ne 0 ]; then
-					check_url "$EPISODE_NAME_VIDEO_HD_b"
-					EPISODE_NAME_VIDEO_HD="$EPISODE_NAME_VIDEO_HD_b"
-				fi
-				if [ $? -eq 0 ]; then
-					if ! $quite_mode ; then
-						echo "${homeclr}Downloading HD video episode ${EPISODE_Cur}..."
-					fi
-
-					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HD"`
-					ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
-					pid[$d]=$ttpid
-				else
-					if ! $quite_mode ; then
-						echo "HD video episode ${EPISODE_Cur} not found..."
-					fi
-				fi
-
-				#echo "PID: ${pid[$d]}"
-			done
-		fi
-		if $download_video_hq ; then
-			for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do
-
-				# If the difference is less, then we can't download more.
-				epi_no_zero="$(echo $EPISODE_TO | sed 's/0*//')"
-				#echo "D: $d"
-				#echo "epi: $epi_no_zero"
-				if [ $d -gt $epi_no_zero ]; then
-					#echo "Over Number: $EPISODE_TO"
-					break
-				fi
-
+				download_audio $d "${EPISODE_NAME_VIDEO_HD}" "${EPISODE_NAME_VIDEO_HD_b}" 			
+				echo "PID: ${pid[$d]}"
+			fi
+			if $download_video_hq ; then
 				EPISODE_Cur=$( printf "%.4d" $d ) # Video is 4 0s long
 				EPISODE_NAME_VIDEO_HQ="${EPISODE_NAME_VIDEO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_864x480_500.mp4"
 				EPISODE_NAME_VIDEO_HQ_b="${EPISODE_NAME_VIDEO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_864x480_500.mp4"
 				#echo $EPISODE_NAME_VIDEO_HQ
+				download_audio $d "${EPISODE_NAME_VIDEO_HQ}" "${EPISODE_NAME_VIDEO_HQ_b}" 			
+				echo "PID: ${pid[$d]}"
 
-				check_url "$EPISODE_NAME_VIDEO_HQ"
-				if [ $? -ne 0 ]; then
-					check_url "$EPISODE_NAME_VIDEO_HQ_b"
-					EPISODE_NAME_VIDEO_HQ="$EPISODE_NAME_VIDEO_HQ_b"
-				fi
-				if [ $? -eq 0 ]; then
-					if ! $quite_mode ; then
-						echo "${homeclr}Downloading HQ video episode ${EPISODE_Cur}..."
-					fi
-
-					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HQ"`
-					ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
-					pid[$d]=$ttpid
-				else
-					if ! $quite_mode ; then
-						echo "HQ video episode ${EPISODE_Cur} not found..."
-					fi
-				fi
-
-				#echo "PID: ${pid[$d]}"
-			done
-		fi
-		if $download_video_lq; then
-			for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do
-
-				# If the difference is less, then we can't download more.
-				epi_no_zero="$(echo $EPISODE_TO | sed 's/0*//')"
-				#echo "D: $d"
-				#echo "epi: $epi_no_zero"
-				if [ $d -gt $epi_no_zero ]; then
-					#echo "Over Number: $EPISODE_TO"
-					break
-				fi
-
+			fi
+			if $download_video_lq; then
 				EPISODE_Cur=$( printf "%.4d" $d ) # Video is 4 0s long
 				EPISODE_NAME_VIDEO_LQ="${EPISODE_NAME_VIDEO_LQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_640x368_256.mp4"
 				EPISODE_NAME_VIDEO_LQ_m="${EPISODE_NAME_VIDEO_LQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_640x368_256.mp4"
 				#echo $EPISODE_NAME_VIDEO_LQ
+				download_audio $d "${EPISODE_NAME_VIDEO_LQ}" "${EPISODE_NAME_VIDEO_LQ_b}" 			
+				echo "PID: ${pid[$d]}"
 
-				check_url "$EPISODE_NAME_VIDEO_LQ"
-				if [ $? -ne 0 ]; then
-					check_url "EPISODE_NAME_VIDEO_LQ_m"
-					EPISODE_NAME_VIDEO_LQ="$EPISODE_NAME_VIDEO_LQ_m"
-				fi
-				if [ $? -eq 0 ]; then
-					if ! $quite_mode ; then
-						echo "${homeclr}Downloading LQ video episode ${EPISODE_Cur}..."
-					fi
-
-					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_LQ"`
-					ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
-					pid[$d]=$ttpid
-				else
-					if ! $quite_mode ; then
-						echo "LQ video episode ${EPISODE_Cur} not found..."
-					fi
-				fi
-
-				#echo "PID: ${pid[$d]}"
-			done
-		fi
-
+			fi
+		done
 
 		# Loop with a sleep inside until a wget download is done.
 		# Then Loop around c again to do another wget download..
@@ -889,7 +719,7 @@ function do_downloading() {
 				# Check all wget download PIDs to see if they are still going.
 				for m in "${!pid[@]}";do
 					if ! $(ps -p ${pid[$m]} >/dev/null 2>&1); then
-						#echo "UnSetting PID: ${pid[$m]}"
+						echo "UnSetting PID: ${pid[$m]}"
 						unset pid[$m] # Remove the old process from the array
 					fi
 				done
