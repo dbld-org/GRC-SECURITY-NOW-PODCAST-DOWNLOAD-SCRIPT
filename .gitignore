@@ -7,5 +7,5 @@
 
 *.mp4
 *.patch
-
+grc_dwld/
 \.update_check\.txt
