@@ -576,43 +576,29 @@ function do_find_latest_episode() {
 	fi
 }
 
-function download_audio() {
 
-	local local_d=$1
-	local local_url=$2
-	if ! $quite_mode ; then
-		echo "${homeclr}Downloading audio episode ${EPISODE_Cur}..."
-		echo "${homeclr}Dwnld count ${local_d} with url ${local_url}"
-	fi
+function download_episode_file() {
 
-	tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$2"`
-	ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
+	local ep_number=$1	# current dowload episode number 
+	local url=$2 		# primary url for current episode 
+	local url_alt=$3	# secondary url for current episode 
 
-	pid[$local_d]=$ttpid
-}
-
-function download_video() {
-
-	local local_d=$1
-	local loc_url=$2 	#$EPISODE_NAME_VIDEO_HD
-	local loc_url_b=$3	#$EPISODE_NAME_VIDEO_HD_b
-
-	check_url "$loc_url"
+	check_url "$url"
 	if [ $? -ne 0 ]; then
-		check_url "$loc_url_b"
-		EPISODE_NAME_VIDEO_HD="$EPISODE_NAME_VIDEO_HD_b"
+		check_url "$url_alt"
+		loc_url="$url_alt"
 	fi
 	if [ $? -eq 0 ]; then
 		if ! $quite_mode ; then
-			echo "${homeclr}Downloading video episode ${EPISODE_Cur}..."
+			echo "${homeclr}Downloading ${url##*\.} file for episode ${ep_number} from url ${url} ..."
 		fi
 
-		tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HD"`
+		tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$url"`
 		ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
-		pid[$local_d]=$ttpid
+		pid[$ep_number]=$ttpid
 	else
 		if ! $quite_mode ; then
-			echo "HD video episode ${EPISODE_Cur} not found..."
+			echo "File type ${url##*\.} for episode ${ep_number} not found on ${url} ..."
 		fi
 	fi
 }
@@ -645,31 +631,31 @@ function do_downloading() {
 			if  $download_audio_lq ; then
 				EPISODE_NAME_AUDIO_LINK="${EPISODE_NAME_AUDIO_LQ_URL}/sn-${EPISODE_Cur}-lq.mp3"
 
-				download_audio $d "${EPISODE_NAME_AUDIO_LINK}"			
+				download_episode_file $d "${EPISODE_NAME_AUDIO_LINK}"			
 				echo "PID: ${pid[$d]}"
 			fi
 			if  $download_episode_text ; then
 				EPISODE_NAME_AUDIO_TEXT="${EPISODE_NAME_AUDIO_TEXT_URL}/sn-${EPISODE_Cur}.txt"
 
-				download_audio $d "${EPISODE_NAME_AUDIO_TEXT}"			
+				download_episode_file $d "${EPISODE_NAME_AUDIO_TEXT}"			
 				echo "PID: ${pid[$d]}"
 			fi
 			if  $download_episode_pdf ; then
 				EPISODE_NAME_AUDIO_PDF="${EPISODE_NAME_AUDIO_PDF_URL}/sn-${EPISODE_Cur}.pdf"
 
-				download_audio $d "${EPISODE_NAME_AUDIO_PDF}"			
+				download_episode_file $d "${EPISODE_NAME_AUDIO_PDF}"			
 				echo "PID: ${pid[$d]}"
 			fi
 			if  $download_episode_html ; then
 				EPISODE_NAME_AUDIO_HTML="${EPISODE_NAME_AUDIO_HTML_URL}/sn-${EPISODE_Cur}.htm"
 
-				download_audio $d "${EPISODE_NAME_AUDIO_HTML}"			
+				download_episode_file $d "${EPISODE_NAME_AUDIO_HTML}"			
 				echo "PID: ${pid[$d]}"
 			fi
 			if  $download_episode_shownote ; then
 				EPISODE_NAME_AUDIO_SHOWNOTES="${EPISODE_NAME_AUDIO_SHOWNOTES_URL}/sn-${EPISODE_Cur}-notes.pdf"
 
-				download_audio $d "${EPISODE_NAME_AUDIO_SHOWNOTES}"			
+				download_episode_file $d "${EPISODE_NAME_AUDIO_SHOWNOTES}"			
 				echo "PID: ${pid[$d]}"
 
 			fi
@@ -678,7 +664,7 @@ function do_downloading() {
 				EPISODE_Cur=$( printf "%.4d" $d )
 				EPISODE_NAME_AUDIO_LINK="${EPISODE_NAME_AUDIO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}.mp3"
 
-				download_audio $d "${EPISODE_NAME_AUDIO_LINK}"
+				download_episode_file $d "${EPISODE_NAME_AUDIO_LINK}"
 				echo "PID: ${pid[$d]}"
 			fi
 			if $download_video_hd ; then
@@ -686,7 +672,7 @@ function do_downloading() {
 				EPISODE_NAME_VIDEO_HD="${EPISODE_NAME_VIDEO_HD_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_1280x720_1872.mp4"
 				EPISODE_NAME_VIDEO_HD_b="${EPISODE_NAME_VIDEO_HD_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_1280x720_1872.mp4"
 				#echo $EPISODE_NAME_VIDEO_HQ
-				download_audio $d "${EPISODE_NAME_VIDEO_HD}" "${EPISODE_NAME_VIDEO_HD_b}" 			
+				download_episode_file $d "${EPISODE_NAME_VIDEO_HD}" "${EPISODE_NAME_VIDEO_HD_b}" 			
 				echo "PID: ${pid[$d]}"
 			fi
 			if $download_video_hq ; then
@@ -694,7 +680,7 @@ function do_downloading() {
 				EPISODE_NAME_VIDEO_HQ="${EPISODE_NAME_VIDEO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_864x480_500.mp4"
 				EPISODE_NAME_VIDEO_HQ_b="${EPISODE_NAME_VIDEO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_864x480_500.mp4"
 				#echo $EPISODE_NAME_VIDEO_HQ
-				download_audio $d "${EPISODE_NAME_VIDEO_HQ}" "${EPISODE_NAME_VIDEO_HQ_b}" 			
+				download_episode_file $d "${EPISODE_NAME_VIDEO_HQ}" "${EPISODE_NAME_VIDEO_HQ_b}" 			
 				echo "PID: ${pid[$d]}"
 
 			fi
@@ -703,7 +689,7 @@ function do_downloading() {
 				EPISODE_NAME_VIDEO_LQ="${EPISODE_NAME_VIDEO_LQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_640x368_256.mp4"
 				EPISODE_NAME_VIDEO_LQ_m="${EPISODE_NAME_VIDEO_LQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_640x368_256.mp4"
 				#echo $EPISODE_NAME_VIDEO_LQ
-				download_audio $d "${EPISODE_NAME_VIDEO_LQ}" "${EPISODE_NAME_VIDEO_LQ_b}" 			
+				download_episode_file $d "${EPISODE_NAME_VIDEO_LQ}" "${EPISODE_NAME_VIDEO_LQ_b}" 			
 				echo "PID: ${pid[$d]}"
 
 			fi
@@ -714,6 +700,7 @@ function do_downloading() {
 		# We should be maintaining a -pd amount of downloads.
 		if [ ${#pid[@]} -gt 0 ] ; then # If we are downloading and nothing is reachable, this array is blank. So skip and break.
 			pid2=("${pid[@]}") # Copy the array so the unset operation does not mess with the for loop ordering.
+			echo " will loop over those jobs : ${pid2}"
 			while true; do
 
 				# Check all wget download PIDs to see if they are still going.
@@ -738,8 +725,7 @@ function do_downloading() {
 		# Then change the download slots to match.
 		slot_downloads=$((${#pid2[@]}-${#pid[@]}))
 		c=$d
-		#echo "Slot download: $slot_downloads"
-
+		echo "Slot download: $slot_downloads"
 	done
 
 	if ! $quite_mode ; then
