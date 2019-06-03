@@ -61,6 +61,7 @@ par_downloads_count=1
 new_download_home=""
 quite_mode=false
 declare -a pid
+declare -a url_list
 declare -a add_to_headers
 declare -a check_program_exists_arr
 download_audio_hq=false
@@ -593,16 +594,35 @@ function download_episode_file() {
 			echo "${homeclr}Downloading ${url##*\.} file for episode ${ep_number} from url ${url} ..."
 		fi
 
-		tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$url"`
-		ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
-		pid[$ep_number]=$ttpid
+	 	tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$url"`
+	 	ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
+	 	pid[$ep_number]=$ttpid
 	else
-		if ! $quite_mode ; then
-			echo "File type ${url##*\.} for episode ${ep_number} not found on ${url} ..."
-		fi
+	 	if ! $quite_mode ; then
+	 		echo "File type ${url##*\.} for episode ${ep_number} not found on ${url} ..."
+	 	fi
 	fi
 }
 
+function generate_ep_url_list() {
+
+	local ep_number=$1	# current dowload episode number 
+	local url=$2 		# primary url for current episode 
+	local url_alt=$3	# secondary url for current episode 
+
+	check_url "$url"
+	if [ $? -ne 0 ]; then
+		check_url "$url_alt"
+		loc_url="$url_alt"
+	fi
+	if [ $? -eq 0 ]; then
+		if ! $quite_mode ; then
+			echo "${homeclr} generating dl url for ${url##*\.} file for episode ${ep_number} - ${url} ..."
+		fi
+		url_list[${#url_list[*]}]=$url
+	fi
+}
+ 
 # IF downloading files, this is the function that does it.
 function do_downloading() {
 
@@ -695,37 +715,42 @@ function do_downloading() {
 			fi
 		done
 
-		# Loop with a sleep inside until a wget download is done.
-		# Then Loop around c again to do another wget download..
-		# We should be maintaining a -pd amount of downloads.
-		if [ ${#pid[@]} -gt 0 ] ; then # If we are downloading and nothing is reachable, this array is blank. So skip and break.
-			pid2=("${pid[@]}") # Copy the array so the unset operation does not mess with the for loop ordering.
-			echo " will loop over those jobs : ${pid2}"
-			while true; do
+		# # Loop with a sleep inside until a wget download is done.
+		# # Then Loop around c again to do another wget download..
+		# # We should be maintaining a -pd amount of downloads.
+		# if [ ${#pid[@]} -gt 0 ] ; then # If we are downloading and nothing is reachable, this array is blank. So skip and break.
+		# 	pid2=("${pid[@]}") # Copy the array so the unset operation does not mess with the for loop ordering.
+		# 	echo " will loop over those jobs : ${pid2}"
+		# 	while true; do
 
-				# Check all wget download PIDs to see if they are still going.
-				for m in "${!pid[@]}";do
-					if ! $(ps -p ${pid[$m]} >/dev/null 2>&1); then
-						echo "UnSetting PID: ${pid[$m]}"
-						unset pid[$m] # Remove the old process from the array
-					fi
-				done
+		# 		# Check all wget download PIDs to see if they are still going.
+		# 		for m in "${!pid[@]}";do
+		# 			if ! $(ps -p ${pid[$m]} >/dev/null 2>&1); then
+		# 				echo "UnSetting PID: ${pid[$m]}"
+		# 				unset pid[$m] # Remove the old process from the array
+		# 			fi
+		# 		done
 
-				#If the above loop has noticed finished downloads, then break from this one so we can download more.
-				if [ ${#pid2[@]} -ne ${#pid[@]} ]; then
-					break # from this sleep loop so another download -pd batch can startup. Danger here is the tiny time in between can allow another download to finish and it may not be accounted for. Can we pause a PID ? kill -STOP pid; kill -CONT pid
-				fi
+		# 		#If the above loop has noticed finished downloads, then break from this one so we can download more.
+		# 		if [ ${#pid2[@]} -ne ${#pid[@]} ]; then
+		# 			break # from this sleep loop so another download -pd batch can startup. Danger here is the tiny time in between can allow another download to finish and it may not be accounted for. Can we pause a PID ? kill -STOP pid; kill -CONT pid
+		# 		fi
 
-				# If nothing has finished downloading, loop again for continuous checking.
-				sleep 5 # Check every few seconds to see if a download finished.
-			done
-		fi
+		# 		# If nothing has finished downloading, loop again for continuous checking.
+		# 		sleep 5 # Check every few seconds to see if a download finished.
+		# 	done
+		# fi
 
-		# Compare the difference between the array going in and coming out. This will show the empty slots that can be filled for downloads.
-		# Then change the download slots to match.
-		slot_downloads=$((${#pid2[@]}-${#pid[@]}))
+		# # Compare the difference between the array going in and coming out. This will show the empty slots that can be filled for downloads.
+		# # Then change the download slots to match.
+		# slot_downloads=$((${#pid2[@]}-${#pid[@]}))
 		c=$d
-		echo "Slot download: $slot_downloads"
+		# echo "Slot download: $slot_downloads"
+
+		# for i in ${url_list[@]}; do echo "${i}" ; done
+		# wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb
+
+		echo ${url_list[@]} | xargs -n 1 -P $slot_downloads wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -nv #-qb 
 	done
 
 	if ! $quite_mode ; then
